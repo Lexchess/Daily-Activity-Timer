@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Day Scheduler Timer</title>
+
+  <!-- “Sexy” UI: glass + gradients + subtle motion, no external libraries -->
+  <style>
+    :root{
+      --bg0:#05070d;
+      --bg1:#070b16;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.08);
+      --stroke: rgba(255,255,255,.12);
+      --stroke2: rgba(255,255,255,.18);
+      --text:#eaf0ff;
+      --muted:#b6c3e6;
+      --muted2:#90a3d6;
+
+      --accent:#7c5cff;
+      --accent2:#26d6ff;
+      --good:#2be28f;
+      --warn:#ffd479;
+      --bad:#ff4d4d;
+
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --shadow2: 0 10px 30px rgba(0,0,0,.35);
+      --r14: 14px;
+      --r18: 18px;
+      --r22: 22px;
+    }
+
+    /* Background “aurora” */
+    body{
+      margin:0;
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1000px 600px at 15% 10%, rgba(124,92,255,.22), transparent 55%),
+        radial-gradient(900px 500px at 85% 20%, rgba(38,214,255,.18), transparent 55%),
+        radial-gradient(900px 700px at 50% 100%, rgba(124,92,255,.14), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    /* Subtle animated grain */
+    body::before{
+      content:"";
+      position:fixed; inset:0;
+      pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
+      mix-blend-mode:overlay;
+      opacity:.18;
+      transform:translateZ(0);
+      animation:grain 10s steps(10) infinite;
+    }
+    @keyframes grain{
+      0%,100%{ transform:translate(0,0); }
+      20%{ transform:translate(-8px,6px); }
+      40%{ transform:translate(7px,-5px); }
+      60%{ transform:translate(-5px,-7px); }
+      80%{ transform:translate(6px,8px); }
+    }
+
+    .wrap{ max-width:1120px; margin:0 auto; padding:24px 18px 40px; }
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+      margin-bottom:16px;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:6px;
+    }
+    h1{
+      margin:0;
+      font-size:20px;
+      letter-spacing:.2px;
+      font-weight:700;
+    }
+    .subtitle{
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.4;
+    }
+
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--stroke);
+      box-shadow: var(--shadow2);
+      color:var(--muted);
+      font-size:12px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .dot{ width:8px; height:8px; border-radius:999px; background:var(--muted2); box-shadow:0 0 18px rgba(255,255,255,.15); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns:1fr; }
+    }
+
+    .card{
+      border-radius: var(--r22);
+      background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.045));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow:hidden;
+      position:relative;
+    }
+    .card::after{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(700px 220px at 10% 0%, rgba(124,92,255,.16), transparent 60%),
+                  radial-gradient(700px 220px at 90% 0%, rgba(38,214,255,.12), transparent 60%);
+      pointer-events:none;
+      opacity:.9;
+    }
+    .card > *{ position:relative; z-index:1; }
+
+    .cardHeader{
+      padding:16px 16px 12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .cardTitle{
+      font-weight:700;
+      font-size:13px;
+      color:var(--muted);
+      letter-spacing:.2px;
+      text-transform:uppercase;
+    }
+
+    .content{ padding:16px; }
+
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .row.space{ justify-content:space-between; }
+
+    /* Pills */
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      color:var(--muted);
+      font-size:12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+    }
+    .pill strong{ color:var(--text); font-weight:700; }
+
+    /* Primary display */
+    .hero{
+      padding:16px;
+      border-radius: var(--r22);
+      background:
+        radial-gradient(900px 260px at 20% 0%, rgba(124,92,255,.22), transparent 60%),
+        radial-gradient(900px 260px at 80% 0%, rgba(38,214,255,.16), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.06));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      display:flex; flex-direction:column; gap:12px;
+    }
+
+    .bigTime{
+      font-size:64px;
+      line-height:1;
+      letter-spacing:1px;
+      font-variant-numeric: tabular-nums;
+      font-weight:800;
+      background: linear-gradient(90deg, rgba(255,255,255,.92), rgba(255,255,255,.74));
+      -webkit-background-clip:text;
+      background-clip:text;
+      color:transparent;
+      text-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    @media (max-width:520px){ .bigTime{ font-size:54px; } }
+
+    .progress{
+      height:12px;
+      width:100%;
+      border-radius:999px;
+      overflow:hidden;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      position:relative;
+    }
+    .bar{
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 30px rgba(124,92,255,.30);
+      transition: width .25s linear;
+    }
+    .barGlow{
+      position:absolute; inset:0;
+      background: radial-gradient(180px 60px at 20% 50%, rgba(38,214,255,.22), transparent 60%);
+      opacity:.55;
+      pointer-events:none;
+    }
+
+    /* Inputs */
+    label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+    input, textarea, button{
+      font-family:inherit;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.30);
+      color: var(--text);
+      outline:none;
+      padding:10px 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+    }
+    input:focus, textarea:focus{
+      border-color: rgba(124,92,255,.55);
+      background: rgba(0,0,0,.36);
+    }
+    textarea{ width:100%; min-height:160px; resize:vertical; }
+
+    input[type="number"]{ width:100%; }
+    input[type="range"]{
+      width:100%;
+      padding:8px 0;
+      box-shadow:none;
+      border:none;
+      background: transparent;
+    }
+
+    /* Buttons */
+    button{
+      cursor:pointer;
+      user-select:none;
+      position:relative;
+      overflow:hidden;
+    }
+    button:hover{ transform: translateY(-1px); }
+    button:active{ transform: translateY(0px); }
+
+    .btnPrimary{
+      background: linear-gradient(90deg, rgba(124,92,255,.92), rgba(38,214,255,.82));
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: 0 16px 40px rgba(124,92,255,.22);
+      font-weight:800;
+    }
+    .btnGhost{
+      background: rgba(0,0,0,.26);
+    }
+    .btnDanger{
+      background: linear-gradient(90deg, rgba(255,77,77,.85), rgba(255,120,120,.70));
+      border: 1px solid rgba(255,255,255,.14);
+      font-weight:800;
+      box-shadow: 0 16px 40px rgba(255,77,77,.14);
+    }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none !important;
+      box-shadow:none;
+    }
+
+    .toggle{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius: 16px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .toggle input{ width:16px; height:16px; padding:0; box-shadow:none; }
+
+    .settingGrid{ display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px; }
+    .settingRow{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .rangeWrap{ flex:1; min-width:260px; }
+    .valPill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    /* Schedule list */
+    .list{ display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+    .item{
+      border-radius: var(--r18);
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.10);
+      padding:12px;
+      display:grid;
+      grid-template-columns: 1fr 120px 120px 200px;
+      gap:10px;
+      align-items:end;
+      transition: border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+    }
+    .item:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.16); }
+    .item.active{
+      border-color: rgba(38,214,255,.45);
+      box-shadow: 0 0 0 2px rgba(38,214,255,.18) inset, 0 18px 60px rgba(0,0,0,.35);
+    }
+    @media (max-width: 820px){
+      .item{ grid-template-columns:1fr; }
+    }
+
+    .mini{ font-size:12px; color:var(--muted); }
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      padding: 3px 7px;
+      border-radius: 10px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      color:var(--text);
+    }
+
+    .footer{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    /* Small icons */
+    .icon{
+      width:16px; height:16px; display:inline-block;
+      vertical-align: -3px;
+      opacity:.9;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.25));
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      *{ transition:none !important; animation:none !important; }
+      body::before{ display:none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Day Scheduler Timer</h1>
+        <div class="subtitle">Sequential focus blocks with a configurable alarm pattern, pause/resume, and persistent settings.</div>
+      </div>
+
+      <div class="badge">
+        <span class="dot" id="hdrDot"></span>
+        <span id="hdrStatus">Idle</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Left: Current timer -->
+      <div class="card">
+        <div class="cardHeader">
+          <div class="cardTitle">Now Running</div>
+          <div class="row" style="gap:8px;">
+            <div class="pill">Segment: <strong id="segName">—</strong></div>
+            <div class="pill">Up next: <strong id="nextName">—</strong></div>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="hero">
+            <div class="row space">
+              <div class="pill">
+                <svg class="icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 8v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <span id="statusText">Idle</span>
+              </div>
+
+              <div class="pill">
+                <svg class="icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7.5 4.5 6 3M16.5 4.5 18 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M4 14a8 8 0 1 0 16 0 8 8 0 0 0-16 0Z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <span id="statusHint">Ready</span>
+              </div>
+            </div>
+
+            <div class="bigTime" id="timeLeft">00:00</div>
+
+            <div class="progress" aria-label="progress">
+              <div class="bar" id="progBar"></div>
+              <div class="barGlow"></div>
+            </div>
+
+            <div class="row" style="gap:10px;">
+              <button class="btnPrimary" id="btnStart">
+                <svg class="icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 5v14l12-7-12-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+                Start
+              </button>
+
+              <button class="btnGhost" id="btnPause">
+                <svg class="icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 6v12M16 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Pause
+              </button>
+
+              <button class="btnGhost" id="btnNext">
+                <svg class="icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 18V6l10 6-10 6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M18 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Skip
+              </button>
+
+              <button class="btnDanger" id="btnStop">
+                <svg class="icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M7 7h10v10H7z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                Stop/Reset
+              </button>
+
+              <span class="mini">
+                Shortcuts:
+                <span class="kbd">Space</span> Pause/Resume
+                <span class="kbd">N</span> Next
+                <span class="kbd">R</span> Reset
+              </span>
+            </div>
+
+            <div class="row" style="gap:10px;">
+              <div class="toggle">
+                <input type="checkbox" id="chkLoop" />
+                <div>
+                  <div class="mini" style="color:var(--text); font-weight:700;">Loop schedule</div>
+                  <div class="mini">Repeat all segments</div>
+                </div>
+              </div>
+
+              <div class="toggle">
+                <input type="checkbox" id="chkAutoStart" checked />
+                <div>
+                  <div class="mini" style="color:var(--text); font-weight:700;">Auto-start next</div>
+                  <div class="mini">No manual clicks</div>
+                </div>
+              </div>
+
+              <div class="toggle">
+                <input type="checkbox" id="chkSound" checked />
+                <div>
+                  <div class="mini" style="color:var(--text); font-weight:700;">Sound</div>
+                  <div class="mini">Alarm enabled</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alarm controls -->
+            <div class="settingGrid">
+              <div class="settingRow">
+                <div class="rangeWrap">
+                  <label for="alarmBeeps">Beeps (count)</label>
+                  <input id="alarmBeeps" type="range" min="1" max="10" step="1" value="3" />
+                </div>
+                <div class="valPill"><span id="alarmBeepsVal">3</span></div>
+              </div>
+
+              <div class="settingRow">
+                <div class="rangeWrap">
+                  <label for="alarmBeepLen">Beep length (seconds)</label>
+                  <input id="alarmBeepLen" type="range" min="0.05" max="1.00" step="0.05" value="0.10" />
+                </div>
+                <div class="valPill"><span id="alarmBeepLenVal">0.10</span>s</div>
+              </div>
+
+              <div class="settingRow">
+                <div class="rangeWrap">
+                  <label for="alarmGap">Gap between beeps (seconds)</label>
+                  <input id="alarmGap" type="range" min="0.00" max="1.00" step="0.05" value="0.12" />
+                </div>
+                <div class="valPill"><span id="alarmGapVal">0.12</span>s</div>
+              </div>
+
+              <div class="settingRow">
+                <div class="rangeWrap">
+                  <label for="alarmVol">Volume</label>
+                  <input id="alarmVol" type="range" min="0" max="1" step="0.01" value="0.12" />
+                </div>
+                <div class="valPill"><span id="alarmVolVal">0.12</span></div>
+                <button class="btnGhost" id="btnTestSound">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none">
+                    <path d="M11 5 6 9H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M18 6a8 8 0 0 1 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  Test Sound
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            If sound doesn’t play the first time, click once anywhere on the page (browser audio policy).
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Add segment -->
+      <div class="card">
+        <div class="cardHeader">
+          <div class="cardTitle">Build Your Day</div>
+          <div class="pill">
+            <svg class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M7 7h10v10H7z" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 7v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Add segments
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="row">
+            <div style="flex:1;">
+              <label for="newName">Name</label>
+              <input id="newName" placeholder="Work / Email / Learning / Break…" style="width:100%;" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <div style="flex:1;">
+              <label for="newMin">Minutes</label>
+              <input id="newMin" type="number" min="0" value="25" />
+            </div>
+            <div style="flex:1;">
+              <label for="newSec">Seconds</label>
+              <input id="newSec" type="number" min="0" max="59" value="0" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button class="btnPrimary" id="btnAdd" style="flex:1;">
+              <svg class="icon" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Add Segment
+            </button>
+            <button class="btnGhost" id="btnPomodoro" style="flex:1;">
+              <svg class="icon" viewBox="0 0 24 24" fill="none">
+                <path d="M7 3h10M12 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 11a6 6 0 1 0 12 0 6 6 0 0 0-12 0Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Load Sample
+            </button>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button class="btnGhost" id="btnExport" style="flex:1;">Export JSON</button>
+            <button class="btnGhost" id="btnImport" style="flex:1;">Import JSON</button>
+          </div>
+
+          <textarea id="jsonBox" placeholder="Export/Import schedule JSON here…" style="margin-top:12px;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schedule list -->
+    <div class="card" style="margin-top:14px;">
+      <div class="cardHeader">
+        <div>
+          <div class="cardTitle">Schedule</div>
+          <div class="mini">Edit name/duration, reorder, or remove segments. Saved automatically.</div>
+        </div>
+        <button class="btnDanger" id="btnClear">
+          <svg class="icon" viewBox="0 0 24 24" fill="none">
+            <path d="M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M6 7l1-3h10l1 3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M7 7l1 14h8l1-14" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          Clear All
+        </button>
+      </div>
+
+      <div class="content">
+        <div class="list" id="scheduleList"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // -------------------------
+  // Persistence
+  // -------------------------
+  const SCHEDULE_KEY = "multiTimerSchedule_v1";
+  const SETTINGS_KEY = "multiTimerSettings_v1";
+
+  /** @type {{name:string, seconds:number}[]} */
+  let schedule = loadSchedule();
+
+  /** @type {{loop:boolean, autoStart:boolean, sound:boolean, alarmBeeps:number, alarmBeepLen:number, alarmGap:number, alarmVol:number}} */
+  let settings = loadSettings();
+
+  // Runtime state
+  let idx = 0;
+  let remaining = 0;
+  let segmentTotal = 0;
+  let running = false;
+  let paused = false;
+  let tickHandle = null;
+  let lastTick = null;
+
+  // Controls
+  const el = {
+    hdrDot: document.getElementById("hdrDot"),
+    hdrStatus: document.getElementById("hdrStatus"),
+
+    statusText: document.getElementById("statusText"),
+    statusHint: document.getElementById("statusHint"),
+    segName: document.getElementById("segName"),
+    nextName: document.getElementById("nextName"),
+    timeLeft: document.getElementById("timeLeft"),
+    progBar: document.getElementById("progBar"),
+
+    btnStart: document.getElementById("btnStart"),
+    btnPause: document.getElementById("btnPause"),
+    btnNext: document.getElementById("btnNext"),
+    btnStop: document.getElementById("btnStop"),
+
+    chkLoop: document.getElementById("chkLoop"),
+    chkAutoStart: document.getElementById("chkAutoStart"),
+    chkSound: document.getElementById("chkSound"),
+
+    alarmBeeps: document.getElementById("alarmBeeps"),
+    alarmBeepsVal: document.getElementById("alarmBeepsVal"),
+    alarmBeepLen: document.getElementById("alarmBeepLen"),
+    alarmBeepLenVal: document.getElementById("alarmBeepLenVal"),
+    alarmGap: document.getElementById("alarmGap"),
+    alarmGapVal: document.getElementById("alarmGapVal"),
+    alarmVol: document.getElementById("alarmVol"),
+    alarmVolVal: document.getElementById("alarmVolVal"),
+    btnTestSound: document.getElementById("btnTestSound"),
+
+    newName: document.getElementById("newName"),
+    newMin: document.getElementById("newMin"),
+    newSec: document.getElementById("newSec"),
+    btnAdd: document.getElementById("btnAdd"),
+    btnPomodoro: document.getElementById("btnPomodoro"),
+
+    btnClear: document.getElementById("btnClear"),
+    scheduleList: document.getElementById("scheduleList"),
+
+    btnExport: document.getElementById("btnExport"),
+    btnImport: document.getElementById("btnImport"),
+    jsonBox: document.getElementById("jsonBox"),
+  };
+
+  function clampInt(n, min, max) {
+    n = Number.isFinite(n) ? Math.floor(n) : min;
+    if (max !== undefined) n = Math.min(max, n);
+    return Math.max(min, n);
+  }
+  function clampFloat(n, min, max) {
+    n = Number.isFinite(n) ? n : min;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function loadSchedule() {
+    try {
+      const raw = localStorage.getItem(SCHEDULE_KEY);
+      if (!raw) return [
+        { name: "Work (Focus)", seconds: 25 * 60 },
+        { name: "Break", seconds: 5 * 60 },
+        { name: "Email", seconds: 20 * 60 },
+        { name: "Learning", seconds: 45 * 60 },
+        { name: "Lunch", seconds: 30 * 60 },
+      ];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(x => x && typeof x.name === "string" && Number.isFinite(x.seconds))
+        .map(x => ({ name: x.name.trim() || "Untitled", seconds: clampInt(x.seconds, 1, 24*60*60) }));
+    } catch {
+      return [];
+    }
+  }
+
+  function saveSchedule() {
+    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
+  }
+
+  function loadSettings() {
+    const defaults = {
+      loop: false,
+      autoStart: true,
+      sound: true,
+      alarmBeeps: 3,
+      alarmBeepLen: 0.10,
+      alarmGap: 0.12,
+      alarmVol: 0.12
+    };
+
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return defaults;
+      const p = JSON.parse(raw);
+
+      return {
+        loop: !!p.loop,
+        autoStart: p.autoStart !== undefined ? !!p.autoStart : defaults.autoStart,
+        sound: p.sound !== undefined ? !!p.sound : defaults.sound,
+        alarmBeeps: clampInt(Number(p.alarmBeeps), 1, 10),
+        alarmBeepLen: clampFloat(Number(p.alarmBeepLen), 0.05, 1.0),
+        alarmGap: clampFloat(Number(p.alarmGap), 0.0, 1.0),
+        alarmVol: clampFloat(Number(p.alarmVol), 0, 1),
+      };
+    } catch {
+      return defaults;
+    }
+  }
+
+  function saveSettings() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
+
+  // -------------------------
+  // Audio (configurable beep-beep-beep)
+  // -------------------------
+  let audioCtx = null;
+
+  function ensureAudio() {
+    if (!settings.sound) return null;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function beepPattern() {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const count = clampInt(settings.alarmBeeps, 1, 10);
+    const d = clampFloat(settings.alarmBeepLen, 0.05, 1.0);
+    const gap = clampFloat(settings.alarmGap, 0.0, 1.0);
+    const v = clampFloat(settings.alarmVol, 0, 1);
+
+    const base = ctx.currentTime;
+
+    for (let i = 0; i < count; i++) {
+      const startAt = base + i * (d + gap);
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.value = 880;
+
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, v), startAt + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + Math.max(0.02, d));
+
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(startAt);
+      osc.stop(startAt + d + 0.03);
+    }
+  }
+
+  // -------------------------
+  // Helpers + UI sync
+  // -------------------------
+  function fmtTime(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  }
+
+  function getCurrent() { return schedule[idx] || null; }
+
+  function getNext() {
+    if (schedule.length === 0) return null;
+    if (idx + 1 < schedule.length) return schedule[idx + 1];
+    return settings.loop ? schedule[0] : null;
+  }
+
+  function setStatus(state) {
+    el.statusText.textContent = state;
+    el.hdrStatus.textContent = state;
+
+    const color =
+      state === "Running" ? "var(--good)" :
+      state === "Paused"  ? "var(--warn)" :
+      state === "Finished"? "var(--accent2)" :
+                            "var(--muted2)";
+
+    el.hdrDot.style.background = color;
+    el.hdrDot.style.boxShadow = `0 0 18px ${state==="Running"?"rgba(43,226,143,.35)":state==="Paused"?"rgba(255,212,121,.35)":state==="Finished"?"rgba(38,214,255,.32)":"rgba(144,163,214,.25)"}`;
+    el.statusHint.textContent =
+      state === "Running" ? "In progress" :
+      state === "Paused" ? "Paused" :
+      state === "Finished" ? "Done" :
+      "Ready";
+  }
+
+  function syncHeader() {
+    const cur = getCurrent();
+    el.segName.textContent = cur ? cur.name : "—";
+    const next = getNext();
+    el.nextName.textContent = next ? next.name : "—";
+  }
+
+  function highlightActive() {
+    const nodes = el.scheduleList.querySelectorAll(".item");
+    nodes.forEach((n, i) => n.classList.toggle("active", running && i === idx));
+  }
+
+  function syncSettingsUI() {
+    el.chkLoop.checked = settings.loop;
+    el.chkAutoStart.checked = settings.autoStart;
+    el.chkSound.checked = settings.sound;
+
+    el.alarmBeeps.value = String(settings.alarmBeeps);
+    el.alarmBeepsVal.textContent = String(settings.alarmBeeps);
+
+    el.alarmBeepLen.value = String(settings.alarmBeepLen);
+    el.alarmBeepLenVal.textContent = settings.alarmBeepLen.toFixed(2);
+
+    el.alarmGap.value = String(settings.alarmGap);
+    el.alarmGapVal.textContent = settings.alarmGap.toFixed(2);
+
+    el.alarmVol.value = String(settings.alarmVol);
+    el.alarmVolVal.textContent = settings.alarmVol.toFixed(2);
+  }
+
+  function syncTimerUI() {
+    el.timeLeft.textContent = fmtTime(remaining);
+    const pct = segmentTotal > 0 ? (1 - remaining / segmentTotal) * 100 : 0;
+    el.progBar.style.width = Math.min(100, Math.max(0, pct)) + "%";
+    syncHeader();
+
+    el.btnPause.textContent = paused ? "Resume" : "Pause";
+    el.btnStart.disabled = running && !paused;
+    el.btnNext.disabled = !running;
+    el.btnStop.disabled = !running && idx === 0 && remaining === 0;
+
+    highlightActive();
+  }
+
+  // -------------------------
+  // Schedule UI
+  // -------------------------
+  function renderSchedule() {
+    el.scheduleList.innerHTML = "";
+
+    if (schedule.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "mini";
+      empty.textContent = "No segments yet. Add at least one.";
+      el.scheduleList.appendChild(empty);
+      return;
+    }
+
+    schedule.forEach((seg, i) => {
+      const div = document.createElement("div");
+      div.className = "item" + ((running && i === idx) ? " active" : "");
+      div.dataset.index = String(i);
+
+      const nameBox = document.createElement("div");
+      const nameLabel = document.createElement("label");
+      nameLabel.textContent = "Name";
+      const nameInput = document.createElement("input");
+      nameInput.value = seg.name;
+      nameInput.style.width = "100%";
+      nameInput.addEventListener("input", () => {
+        schedule[i].name = nameInput.value.trim() || "Untitled";
+        saveSchedule();
+        syncHeader();
+        renderSchedule();
+      });
+      nameBox.appendChild(nameLabel);
+      nameBox.appendChild(nameInput);
+
+      const minBox = document.createElement("div");
+      const minLabel = document.createElement("label");
+      minLabel.textContent = "Min";
+      const minInput = document.createElement("input");
+      minInput.type = "number";
+      minInput.min = "0";
+      minInput.value = String(Math.floor(seg.seconds / 60));
+      minInput.addEventListener("input", () => {
+        const m = clampInt(parseInt(minInput.value, 10), 0, 24*60);
+        const s = schedule[i].seconds % 60;
+        schedule[i].seconds = clampInt(m * 60 + s, 1, 24*60*60);
+        saveSchedule();
+        if (!running && i === idx) primeCurrent();
+        renderSchedule();
+      });
+      minBox.appendChild(minLabel);
+      minBox.appendChild(minInput);
+
+      const secBox = document.createElement("div");
+      const secLabel = document.createElement("label");
+      secLabel.textContent = "Sec";
+      const secInput = document.createElement("input");
+      secInput.type = "number";
+      secInput.min = "0";
+      secInput.max = "59";
+      secInput.value = String(seg.seconds % 60);
+      secInput.addEventListener("input", () => {
+        const s = clampInt(parseInt(secInput.value, 10), 0, 59);
+        const m = Math.floor(schedule[i].seconds / 60);
+        schedule[i].seconds = clampInt(m * 60 + s, 1, 24*60*60);
+        saveSchedule();
+        if (!running && i === idx) primeCurrent();
+        renderSchedule();
+      });
+      secBox.appendChild(secLabel);
+      secBox.appendChild(secInput);
+
+      const btnBox = document.createElement("div");
+      btnBox.className = "row";
+      btnBox.style.justifyContent = "flex-end";
+
+      const up = document.createElement("button");
+      up.className = "btnGhost";
+      up.textContent = "Up";
+      up.disabled = i === 0;
+      up.addEventListener("click", () => moveSegment(i, i - 1));
+
+      const down = document.createElement("button");
+      down.className = "btnGhost";
+      down.textContent = "Down";
+      down.disabled = i === schedule.length - 1;
+      down.addEventListener("click", () => moveSegment(i, i + 1));
+
+      const del = document.createElement("button");
+      del.className = "btnDanger";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => deleteSegment(i));
+
+      btnBox.appendChild(up);
+      btnBox.appendChild(down);
+      btnBox.appendChild(del);
+
+      div.appendChild(nameBox);
+      div.appendChild(minBox);
+      div.appendChild(secBox);
+      div.appendChild(btnBox);
+
+      el.scheduleList.appendChild(div);
+    });
+
+    highlightActive();
+  }
+
+  function moveSegment(from, to) {
+    if (to < 0 || to >= schedule.length) return;
+    const [moved] = schedule.splice(from, 1);
+    schedule.splice(to, 0, moved);
+
+    if (running) {
+      if (from === idx) idx = to;
+      else if (from < idx && to >= idx) idx -= 1;
+      else if (from > idx && to <= idx) idx += 1;
+    } else {
+      idx = 0;
+      primeCurrent();
+    }
+
+    saveSchedule();
+    renderSchedule();
+    syncHeader();
+  }
+
+  function deleteSegment(i) {
+    schedule.splice(i, 1);
+
+    if (running) {
+      if (i < idx) idx -= 1;
+      if (idx >= schedule.length) idx = Math.max(0, schedule.length - 1);
+      const cur = getCurrent();
+      if (!cur) stopAll(true);
+    } else {
+      idx = 0;
+      primeCurrent();
+    }
+
+    saveSchedule();
+    renderSchedule();
+    syncHeader();
+  }
+
+  // -------------------------
+  // Timer logic
+  // -------------------------
+  function primeCurrent() {
+    const cur = getCurrent();
+    if (!cur) {
+      remaining = 0;
+      segmentTotal = 0;
+      setStatus("Idle");
+      syncTimerUI();
+      return;
+    }
+    segmentTotal = cur.seconds;
+    remaining = cur.seconds;
+    setStatus("Idle");
+    syncTimerUI();
+  }
+
+  function start() {
+    if (schedule.length === 0) return;
+
+    ensureAudio();
+    if (!running) {
+      idx = clampInt(idx, 0, Math.max(0, schedule.length - 1));
+      const cur = getCurrent();
+      if (!cur) return;
+      segmentTotal = cur.seconds;
+      remaining = cur.seconds;
+    }
+
+    running = true;
+    paused = false;
+    setStatus("Running");
+    lastTick = performance.now();
+
+    clearInterval(tickHandle);
+    tickHandle = setInterval(tick, 200);
+    syncTimerUI();
+  }
+
+  function pauseToggle() {
+    if (!running) return;
+    paused = !paused;
+    setStatus(paused ? "Paused" : "Running");
+    if (!paused) lastTick = performance.now();
+    syncTimerUI();
+  }
+
+  function stopAll(resetIndex = false) {
+    clearInterval(tickHandle);
+    tickHandle = null;
+    running = false;
+    paused = false;
+    setStatus("Idle");
+
+    if (resetIndex) idx = 0;
+    primeCurrent();
+    renderSchedule();
+  }
+
+  function advanceSegment(manual = false) {
+    beepPattern();
+
+    const next = getNext();
+    if (!next) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+      running = false;
+      paused = false;
+      setStatus("Finished");
+      remaining = 0;
+      segmentTotal = 0;
+      syncTimerUI();
+      return;
+    }
+
+    if (idx + 1 < schedule.length) idx += 1;
+    else idx = 0;
+
+    segmentTotal = schedule[idx].seconds;
+    remaining = schedule[idx].seconds;
+
+    if (!settings.autoStart && !manual) {
+      paused = true;
+      setStatus("Paused");
+    } else {
+      paused = false;
+      setStatus("Running");
+      lastTick = performance.now();
+    }
+
+    syncTimerUI();
+    renderSchedule();
+  }
+
+  function tick() {
+    if (!running || paused) return;
+
+    const now = performance.now();
+    const dt = (now - lastTick) / 1000;
+    lastTick = now;
+
+    remaining -= dt;
+
+    if (remaining <= 0) {
+      remaining = 0;
+      syncTimerUI();
+      advanceSegment(false);
+      return;
+    }
+    syncTimerUI();
+  }
+
+  // -------------------------
+  // Events: timer controls
+  // -------------------------
+  el.btnStart.addEventListener("click", start);
+  el.btnPause.addEventListener("click", pauseToggle);
+  el.btnStop.addEventListener("click", () => stopAll(true));
+  el.btnNext.addEventListener("click", () => { if (running) advanceSegment(true); });
+
+  el.btnAdd.addEventListener("click", () => {
+    const name = (el.newName.value || "").trim() || "Untitled";
+    const m = clampInt(parseInt(el.newMin.value, 10), 0, 24*60);
+    const s = clampInt(parseInt(el.newSec.value, 10), 0, 59);
+    const total = clampInt(m * 60 + s, 1, 24*60*60);
+
+    schedule.push({ name, seconds: total });
+    saveSchedule();
+    renderSchedule();
+    if (!running && schedule.length === 1) primeCurrent();
+
+    el.newName.value = "";
+    el.newMin.value = "25";
+    el.newSec.value = "0";
+  });
+
+  el.btnClear.addEventListener("click", () => {
+    stopAll(true);
+    schedule = [];
+    saveSchedule();
+    renderSchedule();
+    syncHeader();
+    syncTimerUI();
+  });
+
+  el.btnPomodoro.addEventListener("click", () => {
+    stopAll(true);
+    schedule = [
+      { name: "Work (Focus)", seconds: 50*60 },
+      { name: "Break", seconds: 10*60 },
+      { name: "Email / Admin", seconds: 25*60 },
+      { name: "Work (Focus)", seconds: 50*60 },
+      { name: "Break", seconds: 10*60 },
+      { name: "Learning / Study", seconds: 45*60 },
+      { name: "Lunch", seconds: 30*60 },
+      { name: "Work (Focus)", seconds: 50*60 },
+      { name: "Break", seconds: 10*60 },
+      { name: "Meetings / Calls", seconds: 40*60 },
+      { name: "Wrap-up / Planning", seconds: 15*60 },
+    ];
+    saveSchedule();
+    idx = 0;
+    primeCurrent();
+    renderSchedule();
+  });
+
+  el.btnExport.addEventListener("click", () => {
+    el.jsonBox.value = JSON.stringify(schedule, null, 2);
+  });
+
+  el.btnImport.addEventListener("click", () => {
+    try {
+      const parsed = JSON.parse(el.jsonBox.value);
+      if (!Array.isArray(parsed)) throw new Error("JSON must be an array");
+      const cleaned = parsed
+        .filter(x => x && typeof x.name === "string" && Number.isFinite(x.seconds))
+        .map(x => ({ name: x.name.trim() || "Untitled", seconds: clampInt(x.seconds, 1, 24*60*60) }));
+      stopAll(true);
+      schedule = cleaned;
+      saveSchedule();
+      idx = 0;
+      primeCurrent();
+      renderSchedule();
+    } catch (e) {
+      alert("Import failed: " + e.message);
+    }
+  });
+
+  // -------------------------
+  // Events: settings controls (persisted)
+  // -------------------------
+  el.chkLoop.addEventListener("change", () => {
+    settings.loop = el.chkLoop.checked;
+    saveSettings();
+    syncHeader();
+  });
+
+  el.chkAutoStart.addEventListener("change", () => {
+    settings.autoStart = el.chkAutoStart.checked;
+    saveSettings();
+  });
+
+  el.chkSound.addEventListener("change", () => {
+    settings.sound = el.chkSound.checked;
+    saveSettings();
+  });
+
+  el.alarmBeeps.addEventListener("input", () => {
+    settings.alarmBeeps = clampInt(parseInt(el.alarmBeeps.value, 10), 1, 10);
+    el.alarmBeepsVal.textContent = String(settings.alarmBeeps);
+    saveSettings();
+  });
+
+  el.alarmBeepLen.addEventListener("input", () => {
+    settings.alarmBeepLen = clampFloat(parseFloat(el.alarmBeepLen.value), 0.05, 1.0);
+    el.alarmBeepLenVal.textContent = settings.alarmBeepLen.toFixed(2);
+    saveSettings();
+  });
+
+  el.alarmGap.addEventListener("input", () => {
+    settings.alarmGap = clampFloat(parseFloat(el.alarmGap.value), 0.0, 1.0);
+    el.alarmGapVal.textContent = settings.alarmGap.toFixed(2);
+    saveSettings();
+  });
+
+  el.alarmVol.addEventListener("input", () => {
+    settings.alarmVol = clampFloat(parseFloat(el.alarmVol.value), 0, 1);
+    el.alarmVolVal.textContent = settings.alarmVol.toFixed(2);
+    saveSettings();
+  });
+
+  el.btnTestSound.addEventListener("click", () => {
+    ensureAudio();
+    beepPattern();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable)) return;
+
+    if (e.code === "Space") { e.preventDefault(); running ? pauseToggle() : start(); }
+    if (e.key.toLowerCase() === "n") { if (running) advanceSegment(true); }
+    if (e.key.toLowerCase() === "r") { stopAll(true); }
+  });
+
+  // Initial render + apply persisted settings
+  syncSettingsUI();
+  renderSchedule();
+  idx = 0;
+  primeCurrent();
+
+  // Ensure header dot/status reflects initial
+  setStatus("Idle");
+})();
+</script>
+</body>
+</html>
