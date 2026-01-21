@@ -1,91 +1,149 @@
-# Multi-Timer Day Scheduler
+# Discipline Day Timer
 
-A lightweight, configurable daily multi-timer application designed for structured schedules, focus sessions, and time-boxed workflows.
+A beautiful, feature-rich daily activity timer for managing your day with sequential focus blocks. Built as a single HTML file with no dependencies.
 
-This project allows users to define multiple timers that run sequentially across an entire day, with customizable alarm behavior and persistent settings.
-
----
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
-- Sequential timers that run automatically, one after another
-- Fully configurable daily schedule
-- Adjustable alarm length, volume, and repetition
-- Optional seconds display (can be hidden to reduce distraction)
-- Built-in alarm test function
-- Settings persist locally using browser storage
-- Clean, minimal UI focused on usability
+- **Sequential Timer Blocks** - Create a schedule of timed activities that run in sequence
+- **Visual Alerts** - Screen flash notifications when timers complete (configurable per timer)
+- **Audio Alerts** - Customizable beep patterns with adjustable count, length, gap, and volume
+- **Break Mode** - Timers starting with "Break" display a soothing green gradient background
+- **Per-Timer Settings** - Each timer can have individual settings for:
+  - Sound alerts (on/off)
+  - Flash alerts (on/off)
+  - Show seconds display (on/off)
+- **Persistent Storage** - Your schedule and settings are saved to localStorage
+- **Import/Export** - Save and load schedules as JSON
+- **Responsive Design** - Works on desktop and mobile devices
+- **Dark Theme** - Easy on the eyes with a beautiful gradient dark theme
 
----
+## Usage
 
----
+### Quick Start
 
-## Use Cases
+1. Open `timer_revision_2_1_0.html` in any modern web browser
+2. Click "Load Sample" to load a pre-built daily schedule, or
+3. Add your own segments using the "Build Your Day" panel
 
-- Daily routine scheduling
-- Focus / deep-work sessions
-- Shift-based time blocks
-- Medication or reminder timing
-- Structured learning or training schedules
+### Controls
 
----
+- **Start/Pause/Resume** - Single button that adapts to timer state
+- **Previous/Next** - Navigate between timer segments (silent, no alerts)
+- **Reset Day** - Stop the timer and return to the first segment
 
-## Project Structure
+### Global Settings
 
+- **Loop Schedule** - Automatically restart from the beginning when all timers complete
+- **Auto-start Next** - Automatically begin the next timer when one completes
 
-The application is fully client-side and requires no backend.
+### Sound/Flash Settings
 
----
+Expand the "Sound/Flash Settings" panel to configure:
 
-## Installation & Usage
+- **Beeps/Flashes (count)** - Number of beeps/flashes when a timer completes (1-10)
+- **Beep Length** - Duration of each beep in seconds (0.05-1.00)
+- **Gap Between Beeps/Flashes** - Pause between each beep/flash (0.00-1.00)
+- **Volume** - Audio volume level (0-1)
 
-### Local Use
-1. Clone or download the repository
-2. Open `index.html` in any modern web browser
+### Per-Timer Options
 
-### GitHub Pages
-1. Enable GitHub Pages under **Settings → Pages**
-2. Set source to `main` branch and `/ (root)`
-3. Access the app via the generated GitHub Pages URL
+Each timer in your schedule can be configured individually:
 
----
+| Option | Description |
+|--------|-------------|
+| Sound | Enable/disable audio beeps for this timer |
+| Flash | Enable/disable screen flash for this timer |
+| Show Seconds | Display full MM:SS or just minutes |
 
-## Data Storage
+### JSON Format
 
-All user settings are stored locally in the browser using `localStorage`.  
-No data is transmitted or collected.
+Export and import schedules using this JSON format:
 
----
+```json
+[
+  {
+    "name": "Work Session",
+    "seconds": 1500,
+    "sound": true,
+    "flash": true,
+    "showSeconds": true
+  },
+  {
+    "name": "Break",
+    "seconds": 300,
+    "sound": true,
+    "flash": true,
+    "showSeconds": false
+  }
+]
+```
 
-## Roadmap
+## Installation
 
-Planned and potential future enhancements:
+No installation required! Simply:
 
-- Progressive Web App (PWA) support
-- Android app packaging
-- Python desktop version (Windows)
-- Preset schedule templates
-- Export/import schedules
-- Accessibility improvements
+1. Download `timer_revision_2_1_0.html`
+2. Open in your web browser
+3. Start timing!
 
----
+Or host it on any web server or GitHub Pages.
+
+## Browser Compatibility
+
+Works in all modern browsers:
+- Chrome (recommended)
+- Firefox
+- Safari
+- Edge
+
+Note: Audio requires user interaction on first use due to browser autoplay policies.
+
+## Local Storage
+
+The app stores the following in your browser's localStorage:
+
+- `multiTimerSchedule_v3` - Your timer schedule
+- `multiTimerSettings_v3` - Global settings (loop, auto-start, sound settings)
+
+Clear your browser data to reset to defaults.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the **MIT License**.  
-You are free to use, modify, and distribute this software, including for commercial purposes, provided proper attribution is maintained.
+MIT License - Feel free to use, modify, and distribute.
 
-See the `LICENSE` file for full details.
+## Changelog
+
+### v2.1.0
+- Added screen flash alerts with per-timer toggle
+- Combined Start/Pause/Resume into single smart button
+- Renamed "Stop/Reset" to "Reset Day"
+- Updated time display to hide `:00` when seconds are disabled
+- Compact schedule display with responsive single-line layout
+- Added version footer with GitHub link
+- Renamed settings section to "Sound/Flash Settings"
+
+### v1.3.2
+- Added collapsible sound settings panel
+- Moved Sound and Show Seconds options to per-timer settings
+- Added Previous/Next navigation buttons
+- Green gradient background for Break timers
+- Silent navigation (no alerts when using Previous/Next)
+
+### v1.3.1
+- Initial public release
+- Sequential timer blocks
+- Configurable audio alerts
+- Import/Export JSON schedules
+- Persistent localStorage settings
 
 ---
 
-## Disclaimer
-
-This software is provided “as is”, without warranty of any kind.  
-The author assumes no responsibility for missed alerts or scheduling errors.
-
----
-
-## Author
-
-Created by **Jonathan Baker**.
+Made with ❤️ for productivity enthusiasts
+Forked from https://github.com/jbaker-tech/Daily-Activity-Timer
